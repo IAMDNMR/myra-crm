@@ -1,0 +1,10 @@
+[build]
+  base = "/"
+  publish = "dist"
+  command = "npm run build"
+
+# This redirect rule is required for TanStack Router (client-side routing)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
