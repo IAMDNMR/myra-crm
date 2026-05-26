@@ -126,7 +126,7 @@ def signup(signup_data: SignupRequest, db: Session = Depends(get_db)):
         email=signup_data.email,
         full_name=signup_data.full_name,
         hashed_password=hashed_password,
-        role="read_only" # default for security
+        legacy_role="read_only" # default for security
     )
     db.add(new_user)
     db.commit()

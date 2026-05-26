@@ -72,7 +72,7 @@ def seed_defaults():
                     email=su_email,
                     full_name="Super Admin",
                     hashed_password=hashed_pw,
-                    role=models.AppRole.admin
+                    legacy_role=models.AppRole.admin
                 )
                 db.add(su_profile)
             else:
