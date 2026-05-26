@@ -16,7 +16,7 @@ class HistoryCreate(BaseModel):
     changed_by: Optional[str] = None
 
 @router.get("/")
-def get_history(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_history(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("deal_stage_history", "read"))):
     return db.query(models.DealStageHistory).options(
         joinedload(models.DealStageHistory.from_stage),
         joinedload(models.DealStageHistory.to_stage),
@@ -24,7 +24,7 @@ def get_history(db: Session = Depends(get_db), current_user: models.Profile = De
     ).all()
 
 @router.post("/")
-def create_history(data: HistoryCreate, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def create_history(data: HistoryCreate, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("deal_stage_history", "write"))):
     history = models.DealStageHistory(
         id=str(uuid.uuid4()),
         deal_id=data.deal_id,

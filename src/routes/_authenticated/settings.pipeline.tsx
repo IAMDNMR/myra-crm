@@ -65,9 +65,7 @@ function PipelineCard({ pipeline, stages, onChange }: { pipeline: any; stages: a
   };
   
   const setDefault = async () => {
-    // Note: To be fully correct, we should update all pipelines, but we'll just update this one for now
-    // In a real app we'd have a specific endpoint or update the others to false
-    await api.put(`/pipelines/${pipeline.id}`, { is_default: true });
+    await api.put(`/pipelines/${pipeline.id}/set_default`);
     onChange();
     toast.success("Set as default");
   };

@@ -22,7 +22,7 @@ class QuoteCreateSchema(BaseModel):
     line_items: List[LineItemSchema]
 
 @router.get("/")
-def get_all(deal_id: Optional[str] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_all(deal_id: Optional[str] = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("quotes", "read"))):
     q = db.query(models.Quote)
     if deal_id:
         q = q.filter(models.Quote.deal_id == deal_id)
@@ -57,7 +57,7 @@ def get_all(deal_id: Optional[str] = None, skip: int = 0, limit: int = 100, db: 
     return result
 
 @router.post("/")
-def create(data: QuoteCreateSchema, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def create(data: QuoteCreateSchema, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("quotes", "write"))):
     total = sum([item.quantity * item.unit_price for item in data.line_items])
     
     valid_until_dt = None
@@ -93,7 +93,7 @@ def create(data: QuoteCreateSchema, db: Session = Depends(get_db), current_user:
     return quote
 
 @router.put("/{item_id}")
-def update_status(item_id: str, data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def update_status(item_id: str, data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("quotes", "write"))):
     quote = db.query(models.Quote).filter(models.Quote.id == item_id).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")
@@ -104,7 +104,7 @@ def update_status(item_id: str, data: dict, db: Session = Depends(get_db), curre
     return quote
 
 @router.delete("/{item_id}")
-def delete(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def delete(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("quotes", "delete"))):
     quote = db.query(models.Quote).filter(models.Quote.id == item_id).first()
     if not quote:
         raise HTTPException(status_code=404, detail="Quote not found")

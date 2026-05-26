@@ -56,6 +56,13 @@ function Reports() {
       return res?.items || (Array.isArray(res) ? res : []);
     },
   });
+  const { data: stageHistory = [] } = useQuery({
+    queryKey: ["rep-stage-history", range],
+    queryFn: async () => {
+      const res = await api.get("/deal_stage_history");
+      return res || [];
+    },
+  });
 
   const open = deals.filter((d: any) => d.status === "open");
   const closedInRange = deals.filter((d: any) => d.status !== "open" && new Date(d.updated_at) >= new Date(from));
@@ -88,6 +95,55 @@ function Reports() {
       value: ds.reduce((sum: number, d: any) => sum + Number(d.value ?? 0), 0),
     };
   });
+
+  // Deal Velocity calculation
+  const velocityData = useMemo(() => {
+    const stageStats: Record<string, { totalMs: number; count: number }> = {};
+    stages.forEach((s: any) => {
+      stageStats[s.id] = { totalMs: 0, count: 0 };
+    });
+
+    const historyByDeal: Record<string, any[]> = {};
+    stageHistory.forEach((h: any) => {
+      if (!historyByDeal[h.deal_id]) historyByDeal[h.deal_id] = [];
+      historyByDeal[h.deal_id].push(h);
+    });
+
+    deals.forEach((d: any) => {
+      if (d.status !== "won") return;
+
+      const events = historyByDeal[d.id] || [];
+      events.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      
+      let lastTime = new Date(d.created_at).getTime();
+      
+      events.forEach((e) => {
+        const eventTime = new Date(e.created_at).getTime();
+        const duration = eventTime - lastTime;
+        if (e.from_stage_id && stageStats[e.from_stage_id]) {
+          stageStats[e.from_stage_id].totalMs += duration;
+          stageStats[e.from_stage_id].count += 1;
+        }
+        lastTime = eventTime;
+      });
+      
+      const finalTime = new Date(d.updated_at).getTime();
+      const duration = finalTime - lastTime;
+      if (d.stage_id && stageStats[d.stage_id]) {
+        stageStats[d.stage_id].totalMs += duration;
+        stageStats[d.stage_id].count += 1;
+      }
+    });
+
+    return stages.map((s: any) => {
+      const stats = stageStats[s.id];
+      const avgDays = stats.count > 0 ? (stats.totalMs / stats.count) / 86400000 : 0;
+      return {
+        name: s.name,
+        days: parseFloat(avgDays.toFixed(1))
+      };
+    }).filter((s: any) => s.days > 0);
+  }, [deals, stages, stageHistory]);
 
   // Won vs Lost
   const wonLost = [
@@ -220,13 +276,19 @@ function Reports() {
           )}
         </ReportCard>
 
-        {/* Deal Velocity — requires stage history data (coming soon) */}
-        <ReportCard title="Deal Velocity (avg days per stage)">
-          <div className="flex flex-col items-center justify-center h-40 gap-2 text-muted-foreground">
-            <Clock className="h-8 w-8 opacity-40" />
-            <p className="text-sm font-medium">Coming soon</p>
-            <p className="text-xs text-center">Deal velocity tracking will be available once stage history data is collected.</p>
-          </div>
+        <ReportCard title="Deal Velocity (avg days per stage)" onExport={() => downloadCsv("deal-velocity", velocityData)}>
+          {velocityData.length === 0 ? (
+            <EmptyState icon={Clock} title="No velocity data" description="Win some deals to see how long they spend in each stage." />
+          ) : (
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={velocityData} layout="vertical" margin={{ left: 20 }}>
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={100} />
+                <Tooltip formatter={(v) => `${v} days`} />
+                <Bar dataKey="days" fill="hsl(280 60% 60%)" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </ReportCard>
 
         <ReportCard title="Activity by Rep" onExport={() => downloadCsv("activity-by-rep", activityData)}>

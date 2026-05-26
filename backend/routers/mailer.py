@@ -34,7 +34,7 @@ class MailingListCreate(BaseModel):
 # ── Mailing Lists ───────────────────────────────────────────
 
 @router.get("/lists")
-def get_lists(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_lists(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "read"))):
     lists = db.query(models.MailingList).order_by(models.MailingList.created_at.desc()).all()
     result = []
     for ml in lists:
@@ -49,7 +49,7 @@ def get_lists(db: Session = Depends(get_db), current_user: models.Profile = Depe
     return result
 
 @router.post("/lists")
-def create_list(data: MailingListCreate, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def create_list(data: MailingListCreate, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "write"))):
     ml = models.MailingList(id=str(uuid.uuid4()), name=data.name, description=data.description)
     db.add(ml)
     db.commit()
@@ -57,7 +57,7 @@ def create_list(data: MailingListCreate, db: Session = Depends(get_db), current_
     return ml
 
 @router.delete("/lists/{list_id}")
-def delete_list(list_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def delete_list(list_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "delete"))):
     ml = db.query(models.MailingList).filter(models.MailingList.id == list_id).first()
     if not ml:
         raise HTTPException(status_code=404, detail="List not found")
@@ -68,7 +68,7 @@ def delete_list(list_id: str, db: Session = Depends(get_db), current_user: model
     return {"status": "deleted"}
 
 @router.post("/lists/{list_id}/upload")
-async def upload_csv(list_id: str, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+async def upload_csv(list_id: str, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "write"))):
     ml = db.query(models.MailingList).filter(models.MailingList.id == list_id).first()
     if not ml:
         raise HTTPException(status_code=404, detail="List not found")
@@ -121,7 +121,7 @@ async def upload_csv(list_id: str, file: UploadFile = File(...), db: Session = D
 # ── Campaigns ────────────────────────────────────────────────
 
 @router.get("/campaigns")
-def get_campaigns(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_campaigns(db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "read"))):
     campaigns = db.query(models.Campaign).order_by(models.Campaign.created_at.desc()).all()
     result = []
     for c in campaigns:
@@ -141,7 +141,7 @@ def get_campaigns(db: Session = Depends(get_db), current_user: models.Profile = 
     return result
 
 @router.delete("/campaigns/{campaign_id}")
-def delete_campaign(campaign_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def delete_campaign(campaign_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "delete"))):
     c = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
     if not c:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -152,7 +152,7 @@ def delete_campaign(campaign_id: str, db: Session = Depends(get_db), current_use
 # ── Send Bulk Campaign ──────────────────────────────────────
 
 @router.post("/send")
-def send_campaign(data: SendEmailRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def send_campaign(data: SendEmailRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "write"))):
     contacts = []
 
     if data.target_type == "all":
@@ -206,7 +206,7 @@ def send_campaign(data: SendEmailRequest, background_tasks: BackgroundTasks, db:
 # ── Send Single Email ───────────────────────────────────────
 
 @router.post("/send-single")
-def send_single(data: SingleEmailRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def send_single(data: SingleEmailRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("mailer", "write"))):
     body = data.body
     body = body.replace("{{first_name}}", data.to_name or "there")
 

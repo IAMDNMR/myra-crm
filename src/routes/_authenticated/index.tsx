@@ -180,7 +180,8 @@ function Dashboard() {
       if (closedStatus) {
         await api.put(`/tasks/${id}`, { status_id: closedStatus.id });
       } else {
-        await api.delete(`/tasks/${id}`); // Fallback if no closed status exists
+        toast.error("No closed task status exists to mark this complete. Please create one in settings.");
+        return;
       }
       toast.success("Task completed");
       setRefreshKey((k) => k + 1);

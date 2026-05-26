@@ -10,18 +10,18 @@ import uuid
 router = APIRouter(prefix="/task_statuses", tags=["task_statuses"])
 
 @router.get("/")
-def get_all(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_all(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("task_statuses", "read"))):
     return db.query(models.CustomTaskStatus).offset(skip).limit(limit).all()
 
 @router.get("/{item_id}")
-def get_one(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_one(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("task_statuses", "read"))):
     item = db.query(models.CustomTaskStatus).filter(models.CustomTaskStatus.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
 
 @router.post("/")
-def create(data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def create(data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("task_statuses", "write"))):
     item = models.CustomTaskStatus(id=str(uuid.uuid4()), **data)
     db.add(item)
     db.commit()
@@ -29,7 +29,7 @@ def create(data: dict, db: Session = Depends(get_db), current_user: models.Profi
     return item
 
 @router.put("/{item_id}")
-def update(item_id: str, data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def update(item_id: str, data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("task_statuses", "write"))):
     item = db.query(models.CustomTaskStatus).filter(models.CustomTaskStatus.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -43,7 +43,7 @@ def update(item_id: str, data: dict, db: Session = Depends(get_db), current_user
     return item
 
 @router.delete("/{item_id}")
-def delete(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def delete(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("task_statuses", "delete"))):
     item = db.query(models.CustomTaskStatus).filter(models.CustomTaskStatus.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")

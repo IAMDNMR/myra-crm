@@ -12,7 +12,7 @@ class ContactAdminRequest(BaseModel):
     message: str
 
 @router.post("/contact-admin")
-def contact_admin(data: ContactAdminRequest, background_tasks: BackgroundTasks, current_user: models.Profile = Depends(auth.get_current_user)):
+def contact_admin(data: ContactAdminRequest, background_tasks: BackgroundTasks, current_user: models.Profile = Depends(auth.require_permission("support", "write"))):
     admin_email = os.getenv("SUPERUSER_EMAIL")
     if not admin_email:
         raise HTTPException(status_code=500, detail="Admin email is not configured on the server.")

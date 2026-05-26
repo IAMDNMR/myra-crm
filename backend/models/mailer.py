@@ -30,4 +30,4 @@ class Campaign(Base):
     recipients = Column(Integer, default=0)
     status = Column(String, default="sent")  # sent, draft
     sent_by = Column(String, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+

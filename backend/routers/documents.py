@@ -16,7 +16,7 @@ if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 
 @router.get("/")
-def get_documents(deal_id: Optional[str] = None, contact_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def get_documents(deal_id: Optional[str] = None, contact_id: Optional[str] = None, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("documents", "read"))):
     q = db.query(models.Document)
     if deal_id:
         q = q.filter(models.Document.deal_id == deal_id)
@@ -30,7 +30,7 @@ async def upload_document(
     deal_id: Optional[str] = Form(None),
     contact_id: Optional[str] = Form(None),
     db: Session = Depends(get_db),
-    current_user: models.Profile = Depends(auth.get_current_user)
+    current_user: models.Profile = Depends(auth.require_permission("documents", "write"))
 ):
     if not deal_id and not contact_id:
         raise HTTPException(status_code=400, detail="Must provide deal_id or contact_id")
@@ -61,7 +61,7 @@ async def upload_document(
     return doc
 
 @router.get("/{item_id}/download")
-def download_document(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def download_document(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("documents", "read"))):
     doc = db.query(models.Document).filter(models.Document.id == item_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -72,7 +72,7 @@ def download_document(item_id: str, db: Session = Depends(get_db), current_user:
     return FileResponse(path=doc.file_path, filename=doc.filename)
 
 @router.delete("/{item_id}")
-def delete_document(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.get_current_user)):
+def delete_document(item_id: str, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("documents", "delete"))):
     doc = db.query(models.Document).filter(models.Document.id == item_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")

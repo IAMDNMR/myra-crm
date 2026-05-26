@@ -46,7 +46,7 @@ app.add_middleware(
 app.include_router(contacts.router)
 app.include_router(companies.router)
 
-from routers import leads, deals, pipelines, stages, tasks, activities, task_statuses, profiles, support, products, quotes, webhooks, documents, notifications, mailer, deal_stage_history, roles, permissions
+from routers import leads, deals, pipelines, stages, tasks, activities, task_statuses, profiles, support, products, quotes, webhooks, documents, notifications, mailer, deal_stage_history, roles, permissions, email_templates
 app.include_router(leads.router)
 app.include_router(deals.router)
 app.include_router(pipelines.router)
@@ -65,6 +65,7 @@ app.include_router(mailer.router)
 app.include_router(deal_stage_history.router)
 app.include_router(roles.router)
 app.include_router(permissions.router)
+app.include_router(email_templates.router)
 
 from pydantic import BaseModel, EmailStr
 

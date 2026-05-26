@@ -45,12 +45,6 @@ function TemplatesSettings() {
 
   return (
     <div className="space-y-4">
-      {/* Feature notice */}
-      <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/40 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
-        <Info className="h-4 w-4 mt-0.5 shrink-0" />
-        <span>Email templates are coming soon — the API endpoint is not yet active. Templates you create here will be stored once the backend is ready.</span>
-      </div>
-
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild><Button size="sm"><Plus className="h-4 w-4 mr-2" />New Template</Button></DialogTrigger>
