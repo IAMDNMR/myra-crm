@@ -14,6 +14,7 @@ import { SortableTh, sortRows, type SortState } from "@/components/SortableTh";
 import { EmptyState } from "@/components/EmptyState";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { downloadCsv } from "@/lib/csv";
+import { CsvImportDialog } from "@/components/CsvImportDialog";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
@@ -31,6 +32,7 @@ function LeadsPage() {
   const [sort, setSort] = useState<SortState<LeadSortKey>>({ key: "created", dir: "desc" });
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [confirmDel, setConfirmDel] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const { data: leads = [] } = useQuery({
     queryKey: ["leads"],
@@ -127,6 +129,11 @@ function LeadsPage() {
           <Button variant="outline" size="sm" onClick={exportCsv}>
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
+          {!isReadOnly && (
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              Import CSV
+            </Button>
+          )}
           {!isReadOnly && (
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -247,6 +254,13 @@ function LeadsPage() {
         destructive
         onConfirm={bulkDelete}
       />
+
+      <CsvImportDialog
+        table="leads"
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onComplete={() => qc.invalidateQueries({ queryKey: ["leads"] })}
+      />
     </div>
   );
 }
@@ -266,8 +280,40 @@ export function LeadForm({
     source: lead?.source ?? "",
     status: lead?.status ?? "new",
     notes: lead?.notes ?? "",
+    custom_fields: lead?.custom_fields ?? {},
   });
   const [busy, setBusy] = useState(false);
+  const [showNewField, setShowNewField] = useState(false);
+  const [newFieldName, setNewFieldName] = useState("");
+  const qc = useQueryClient();
+
+  const { data: sources = [] } = useQuery({
+    queryKey: ["lead-sources"],
+    queryFn: () => api.get("/settings/lead-sources"),
+  });
+
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["custom-fields", "lead"],
+    queryFn: () => api.get("/settings/custom-fields/lead"),
+  });
+
+  const handleAddField = async () => {
+    if (!newFieldName.trim()) return;
+    try {
+      const key = newFieldName.toLowerCase().replace(/[\s_-]+/g, '_');
+      await api.post("/settings/custom-fields", {
+        entity_type: "lead",
+        name: key,
+        label: newFieldName
+      });
+      setShowNewField(false);
+      setNewFieldName("");
+      qc.invalidateQueries({ queryKey: ["custom-fields", "lead"] });
+      toast.success("Field added");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -308,7 +354,19 @@ export function LeadForm({
       </div>
       <div>
         <Label>Source</Label>
-        <Input value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })} />
+        <select
+          className="w-full h-10 px-3 border rounded-md text-sm bg-background"
+          value={f.source}
+          onChange={(e) => setF({ ...f, source: e.target.value })}
+        >
+          <option value="">Select source...</option>
+          {sources.map((src: any) => (
+            <option key={src.id} value={src.name}>{src.name}</option>
+          ))}
+          {f.source && !sources.find((s:any) => s.name === f.source) && (
+            <option value={f.source}>{f.source} (Legacy)</option>
+          )}
+        </select>
       </div>
       <div>
         <Label>Status</Label>
@@ -331,9 +389,44 @@ export function LeadForm({
           onChange={(e) => setF({ ...f, notes: e.target.value })}
         />
       </div>
-      <Button type="submit" disabled={busy} className="w-full">
-        {busy ? "Saving..." : "Save Lead"}
-      </Button>
+
+      {customFields.length > 0 && (
+        <div className="pt-2 border-t space-y-3">
+          <h3 className="text-sm font-semibold">Custom Fields</h3>
+          {customFields.map((field: any) => (
+            <div key={field.id}>
+              <Label>{field.label}</Label>
+              <Input
+                value={f.custom_fields[field.name] || ""}
+                onChange={(e) => setF({ ...f, custom_fields: { ...f.custom_fields, [field.name]: e.target.value } })}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showNewField ? (
+        <div className="flex gap-2 items-center p-3 bg-muted rounded-md mt-2">
+          <Input 
+            placeholder="Field name (e.g. Industry)" 
+            value={newFieldName}
+            onChange={(e) => setNewFieldName(e.target.value)}
+            className="flex-1"
+          />
+          <Button type="button" onClick={handleAddField} size="sm">Add</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewField(false)}>Cancel</Button>
+        </div>
+      ) : (
+        <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewField(true)} className="mt-2 text-primary">
+          <Plus className="h-4 w-4 mr-1" /> Add Custom Field
+        </Button>
+      )}
+
+      <div className="pt-4">
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? "Saving..." : "Save Lead"}
+        </Button>
+      </div>
     </form>
   );
 }

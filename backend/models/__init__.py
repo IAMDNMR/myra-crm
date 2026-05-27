@@ -4,6 +4,7 @@ from .sales import DealStatus, Pipeline, Stage, Deal, DealStageHistory, QuoteSta
 from .activities import ActivityType, TaskType, Priority, Activity, CustomTaskStatus, Task, EmailTemplate
 from .mailer import MailingList, MailingListContact, Campaign
 from .rbac import Permission, Role, RolePermission
+from .settings import LeadSource, CustomFieldDefinition
 from database import Base
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "ActivityType", "TaskType", "Priority", "Activity", "CustomTaskStatus", "Task", "EmailTemplate",
     "MailingList", "MailingListContact", "Campaign",
     "Permission", "Role", "RolePermission",
+    "LeadSource", "CustomFieldDefinition",
     "Base"
 ]
 

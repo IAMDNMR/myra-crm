@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Upload, FileSpreadsheet, Check, AlertCircle } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 /* ---------- CSV parser ---------- */
 
@@ -78,14 +80,24 @@ const COLUMNS: Record<string, { label: string; key: string }[]> = {
     { label: 'Size', key: 'size' },
     { label: 'Website', key: 'website' },
   ],
+  leads: [
+    { label: 'Name', key: 'name' },
+    { label: 'Company Name', key: 'company_name' },
+    { label: 'Email', key: 'email' },
+    { label: 'Phone', key: 'phone' },
+    { label: 'Source', key: 'source' },
+    { label: 'Status', key: 'status' },
+    { label: 'Notes', key: 'notes' },
+  ],
 };
 
 const SKIP_VALUE = '__skip__';
+const CREATE_VALUE = '__create__';
 
 /* ---------- Types ---------- */
 
 interface CsvImportDialogProps {
-  table: 'contacts' | 'companies';
+  table: 'contacts' | 'companies' | 'leads';
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete: () => void;
@@ -108,8 +120,16 @@ export function CsvImportDialog({
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [result, setResult] = useState<{ success: number; errors: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const qc = useQueryClient();
 
-  const dbColumns = COLUMNS[table] ?? [];
+  const { data: customFields = [] } = useQuery({
+    queryKey: ['custom-fields', table],
+    queryFn: () => api.get(`/settings/custom-fields/${table}`),
+    enabled: open && table === 'leads', // Enable for leads, can expand later
+  });
+
+  const dynamicCols = customFields.map((cf: any) => ({ label: cf.label, key: `custom_fields.${cf.name}` }));
+  const dbColumns = [...(COLUMNS[table] ?? []), ...dynamicCols];
 
   /* --- Reset --- */
   const reset = () => {
@@ -171,6 +191,24 @@ export function CsvImportDialog({
   );
 
   /* --- Mapping helpers --- */
+  const handleCreateCustomField = async (csvIndex: number) => {
+    const header = csvHeaders[csvIndex];
+    if (!header) return;
+    try {
+      const key = header.toLowerCase().replace(/[\s_-]+/g, '_');
+      await api.post("/settings/custom-fields", {
+        entity_type: table,
+        name: key,
+        label: header
+      });
+      await qc.invalidateQueries({ queryKey: ["custom-fields", table] });
+      setMapping((prev) => ({ ...prev, [csvIndex]: `custom_fields.${key}` }));
+      toast.success(`Created custom field: ${header}`);
+    } catch (error: any) {
+      toast.error("Failed to create custom field. It might already exist.");
+    }
+  };
+
   const setColumnMapping = (csvIndex: number, dbKey: string) => {
     setMapping((prev) => {
       const next = { ...prev };
@@ -184,13 +222,17 @@ export function CsvImportDialog({
   };
 
   /* --- Build mapped data --- */
-  const buildMappedRows = (): Record<string, string>[] => {
+  const buildMappedRows = (): Record<string, any>[] => {
     return csvRows.map((row) => {
-      const obj: Record<string, string> = {};
+      const obj: Record<string, any> = { custom_fields: {} };
       Object.entries(mapping).forEach(([csvIdx, dbKey]) => {
         const val = row[Number(csvIdx)];
         if (val !== undefined && val !== '') {
-          obj[dbKey] = val;
+          if (dbKey.startsWith('custom_fields.')) {
+            obj.custom_fields[dbKey.split('.')[1]] = val;
+          } else {
+            obj[dbKey] = val;
+          }
         }
       });
       return obj;
@@ -199,7 +241,7 @@ export function CsvImportDialog({
 
   /* --- Import --- */
   const handleImport = async () => {
-    const rows = buildMappedRows().filter((r) => Object.keys(r).length > 0);
+    const rows = buildMappedRows().filter((r) => Object.keys(r).length > 0 || Object.keys(r.custom_fields).length > 0);
     if (rows.length === 0) return;
 
     setImporting(true);
@@ -211,7 +253,8 @@ export function CsvImportDialog({
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
       try {
-        await api.post(`/${table}`, batch);
+        const endpoint = table === 'leads' ? '/leads/bulk' : `/${table}`;
+        await api.post(endpoint, batch);
         success += batch.length;
       } catch {
         errors += batch.length;
@@ -242,7 +285,7 @@ export function CsvImportDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Import {table === 'contacts' ? 'Contacts' : 'Companies'}
+            Import {table === 'contacts' ? 'Contacts' : table === 'companies' ? 'Companies' : 'Leads'}
           </DialogTitle>
           <DialogDescription>
             Upload a CSV file to bulk import records.
@@ -333,7 +376,13 @@ export function CsvImportDialog({
                   <div className="flex-1">
                     <Select
                       value={mapping[i] ?? SKIP_VALUE}
-                      onValueChange={(val) => setColumnMapping(i, val)}
+                      onValueChange={(val) => {
+                        if (val === CREATE_VALUE) {
+                          handleCreateCustomField(i);
+                        } else {
+                          setColumnMapping(i, val);
+                        }
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Skip column" />
@@ -342,6 +391,11 @@ export function CsvImportDialog({
                         <SelectItem value={SKIP_VALUE}>
                           <span className="text-muted-foreground">Skip column</span>
                         </SelectItem>
+                        {table === 'leads' && (
+                          <SelectItem value={CREATE_VALUE} className="text-primary font-medium">
+                            + Create Custom Field
+                          </SelectItem>
+                        )}
                         {dbColumns.map((col) => (
                           <SelectItem key={col.key} value={col.key}>
                             {col.label}
@@ -391,11 +445,16 @@ export function CsvImportDialog({
                   <tbody>
                     {previewRows.map((row, r) => (
                       <tr key={r} className="border-t">
-                        {mappedColumns.map((col) => (
-                          <td key={col.key} className="px-3 py-2">
-                            {row[col.key] || '—'}
-                          </td>
-                        ))}
+                        {mappedColumns.map((col) => {
+                          const val = col.key.startsWith('custom_fields.') 
+                            ? row.custom_fields?.[col.key.split('.')[1]] 
+                            : row[col.key];
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {val || '—'}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>

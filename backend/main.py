@@ -10,6 +10,16 @@ from seed import seed_defaults
 
 # Create all tables in the database
 models.Base.metadata.create_all(bind=engine)
+
+# Migration: add custom_fields column to leads table if it doesn't exist
+from sqlalchemy import text
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE leads ADD COLUMN custom_fields JSON DEFAULT '{}'"))
+        conn.commit()
+    except Exception:
+        pass
+
 seed_defaults()
 
 from contextlib import asynccontextmanager
@@ -66,6 +76,8 @@ app.include_router(deal_stage_history.router)
 app.include_router(roles.router)
 app.include_router(permissions.router)
 app.include_router(email_templates.router)
+from routers import settings
+app.include_router(settings.router)
 
 from pydantic import BaseModel, EmailStr
 

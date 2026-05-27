@@ -9,6 +9,7 @@ const ALL_NAV = [
   { to: "/settings", label: "Profile", exact: true },
   { to: "/settings/team", label: "Team", managerOnly: true },
   { to: "/settings/pipeline", label: "Pipelines", managerOnly: true },
+  { to: "/settings/leads", label: "Leads", managerOnly: true },
   { to: "/settings/tasks", label: "Task Statuses", managerOnly: true },
   { to: "/settings/templates", label: "Email Templates" },
   { to: "/settings/webforms", label: "Web Forms", managerOnly: true },

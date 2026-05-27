@@ -28,6 +28,16 @@ def create(data: dict, db: Session = Depends(get_db), current_user: models.Profi
     db.refresh(item)
     return item
 
+@router.post("/bulk")
+def bulk_create(leads_data: List[dict], db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("leads", "write"))):
+    created_items = []
+    for data in leads_data:
+        item = models.Lead(id=str(uuid.uuid4()), **data)
+        db.add(item)
+        created_items.append(item)
+    db.commit()
+    return {"status": "success", "count": len(created_items)}
+
 @router.put("/{item_id}")
 def update(item_id: str, data: dict, db: Session = Depends(get_db), current_user: models.Profile = Depends(auth.require_permission("leads", "write"))):
     item = db.query(models.Lead).filter(models.Lead.id == item_id).first()

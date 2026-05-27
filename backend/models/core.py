@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Text, Enum, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, Text, Enum, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 import enum
 from database import Base
@@ -35,6 +35,7 @@ class Lead(Base):
     source = Column(String, nullable=True)
     status = Column(Enum(LeadStatus), default=LeadStatus.new)
     notes = Column(Text, nullable=True)
+    custom_fields = Column(JSON, default=dict)
     owner_id = Column(String, ForeignKey("profiles.id"), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
